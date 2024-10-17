@@ -1,6 +1,7 @@
 import math
 import torch
 import os
+import csv
 
 from utils import dataLoader
 from cnn import simple_net
@@ -11,6 +12,11 @@ MODEL_PATH = './Models'
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 512
 EPOCH = 40
+
+# 打开 CSV 文件
+with open('.\DataSets\SLF\data.csv', mode='r', encoding='utf-8') as file:
+    csv_reader = csv.reader(file)
+
 
 print('Loading train set...')
 train_set = dataLoader.loadTrain_set(DATA_PATH)
