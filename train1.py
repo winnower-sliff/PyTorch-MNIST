@@ -1,7 +1,9 @@
 import math
 import torch
 import os
-import scipy.io  
+import scipy.io
+from tqdm import *
+import matplotlib.pyplot as plt
 
 from torch.utils.data import Dataset, DataLoader
 from cnn import wt_net
@@ -10,24 +12,24 @@ from cnn import wt_net
 DATA_PATH = "./DataSets"
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 64
-EPOCH = 40
+BATCH_SIZE = 128
+EPOCH = 10000
 
-# 加载MAT文件  
+# 加载MAT文件
 print("Loading train set...")
-label_data = scipy.io.loadmat('./DataSets/SLF/labels.mat')  
-sample_data = scipy.io.loadmat('./DataSets/SLF/datas.mat')  
-
+label_data = scipy.io.loadmat("./DataSets/SLF/labels.mat")
+sample_data = scipy.io.loadmat("./DataSets/SLF/datas.mat")
 
 
 # 将数据重塑为样本和特征的形式
 # 每个样本由2行组成，因此总共有500个样本
 num_samples = 600
 num_features = 4070
-samples = torch.from_numpy(sample_data['save_data'])
+samples = torch.from_numpy(sample_data["save_data"])
 samples = samples.reshape(num_samples, 1, 2, num_features)
-labels = torch.from_numpy(label_data['labels'])
+labels = torch.from_numpy(label_data["labels"])
 labels = labels.reshape(num_samples)
+
 
 # 创建一个自定义的Dataset类
 class CustomDataset(Dataset):
@@ -39,7 +41,8 @@ class CustomDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        sample = torch.tensor(self.samples[idx], dtype=torch.float32)
+        # sample = torch.tensor(self.samples[idx], dtype=torch.float32)
+        sample = self.samples[idx]
         label = self.labels[idx]
         return sample, label
 
@@ -66,9 +69,15 @@ print(
 )
 print("-----------------\n")
 print("Start training...")
+
+pbar = tqdm(range(EPOCH))
+
+Accs = []
+
 # 训练
-for epoch in range(EPOCH):
-    print("Training epoch {}/{}".format(epoch + 1, EPOCH))
+for epoch in pbar:
+    # print("Training epoch {}/{}".format(epoch + 1, EPOCH))
+    pbar.set_description("Training epoch")
     num_correct = 0
     val_loss = 0
     for batch_idx, (images, labels) in enumerate(dataloader):
@@ -88,21 +97,38 @@ for epoch in range(EPOCH):
         val_loss += val_loss_batch
         num_correct_batch += (pred == labels).sum().item()
         num_correct += num_correct_batch
-        print(
-            "Batch {}/{}, Loss: {:.6f}, Accuracy: {:.6f}%".format(
-                batch_idx + 1,
-                BATCH_NUM,
-                val_loss_batch / BATCH_SIZE,
-                100 * num_correct_batch / BATCH_SIZE,
-            )
-        )
-    print(
-        "Epoch {}: Loss: {:.6f}, Accuracy: {:.6f}%\n".format(
-            epoch + 1, val_loss / len(dataset), 100 * num_correct / len(dataset)
-        )
+        # print(
+        #     "Batch {}/{}, Loss: {:.6f}, Accuracy: {:.6f}%".format(
+        #         batch_idx + 1,
+        #         BATCH_NUM,
+        #         val_loss_batch / BATCH_SIZE,
+        #         100 * num_correct_batch / BATCH_SIZE,
+        #     )
+        # )
+    # print(
+    #     "Epoch {}: Loss: {:.6f}, Accuracy: {:.6f}%\n".format(
+    #         epoch + 1, val_loss / len(dataset), 100 * num_correct / len(dataset)
+    #     )
+    # )
+    pbar.set_postfix(
+        Accuracy="{:.6f}%".format(100 * num_correct / len(dataset)),
+        Loss="{:.6f}".format(val_loss / len(dataset)),
     )
+    Accs.append(num_correct / len(dataset))
 # 保存整个网络
 print("Saving the model...")
 if not os.path.exists(MODEL_PATH):
     os.makedirs(MODEL_PATH)
 torch.save(model, MODEL_PATH + "/MyCNN_MNIST.pkl")
+
+# 绘制折线图
+plt.plot(range(len(Accs)), Accs, marker="o")
+
+# 添加标题和标签
+plt.title("Accuracy of Each epoch")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+
+# 显示图表
+plt.grid(True)  # 添加网格线
+plt.show()

@@ -9,7 +9,7 @@ class MyCNN(nn.Module):
         # 创建一个pytorch神经网络模型
         super(MyCNN, self).__init__()
         #  卷积层1，32通道输出，卷积核大小3*3，步长1*1，padding为1
-        self.Conv1 = nn.Conv2d(1, 32, 3, 1, 1)
+        self.Conv1 = nn.Conv2d(1, 32, (3,101), 1, (1,50))
         # 最大值池化，核大小2*2，步长2*2
         self.pool1 = nn.MaxPool2d((1, 4), 4)
         self.Conv2 = nn.Conv2d(32, 64, 3, 1, 1)
