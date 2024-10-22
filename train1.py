@@ -1,7 +1,7 @@
 import math
 import torch
 import os
-import pandas as pd
+import scipy.io  
 
 from torch.utils.data import Dataset, DataLoader
 from cnn import wt_net
@@ -10,21 +10,24 @@ from cnn import wt_net
 DATA_PATH = "./DataSets"
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 10
+BATCH_SIZE = 64
 EPOCH = 40
 
+# 加载MAT文件  
 print("Loading train set...")
-# 打开 CSV 文件
-data = pd.read_csv(r".\DataSets\SLF\datas.csv", header=None)
+label_data = scipy.io.loadmat('./DataSets/SLF/labels.mat')  
+sample_data = scipy.io.loadmat('./DataSets/SLF/datas.mat')  
+
 
 
 # 将数据重塑为样本和特征的形式
 # 每个样本由2行组成，因此总共有500个样本
-num_samples = 500
+num_samples = 600
 num_features = 4070
-samples = data.values.reshape(num_samples, 1, 2, num_features)
-labels = torch.ones(num_samples, dtype=torch.long)  # 每个样本的标签都是1
-
+samples = torch.from_numpy(sample_data['save_data'])
+samples = samples.reshape(num_samples, 1, 2, num_features)
+labels = torch.from_numpy(label_data['labels'])
+labels = labels.reshape(num_samples)
 
 # 创建一个自定义的Dataset类
 class CustomDataset(Dataset):
