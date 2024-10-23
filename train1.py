@@ -1,19 +1,20 @@
 import math
 import torch
+import torch.nn as nn
 import os
 import scipy.io
 from tqdm import *
 import matplotlib.pyplot as plt
 
 from torch.utils.data import Dataset, DataLoader
-from cnn import wt_net
+from cnn import rsnet
 
 
 DATA_PATH = "./DataSets"
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
-EPOCH = 10000
+EPOCH = 10
 
 # 加载MAT文件
 print("Loading train set...")
@@ -56,10 +57,10 @@ BATCH_NUM = math.ceil(len(dataset) / BATCH_SIZE)
 print("Using ", DEVICE)
 
 # 建立模型并载入设备
-model = wt_net.MyCNN().to(DEVICE)
+net = rsnet.rsnet34().to(DEVICE)
 # 定义损失及优化器
 cost = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters())
+optimizer = torch.optim.Adam(net.parameters())
 
 print(
     "\n-----------------\n"
@@ -73,62 +74,65 @@ print("Start training...")
 pbar = tqdm(range(EPOCH))
 
 Accs = []
+Losss = []
+loss_function = nn.CrossEntropyLoss()  ## 交叉熵损失函数
 
 # 训练
 for epoch in pbar:
     # print("Training epoch {}/{}".format(epoch + 1, EPOCH))
     pbar.set_description("Training epoch")
-    num_correct = 0
-    val_loss = 0
-    for batch_idx, (images, labels) in enumerate(dataloader):
-        num_correct_batch = 0
-        val_loss_batch = 0
-        # 注意这里的images和labels均为一个batch的图片和标签
-        images = images.to(DEVICE).float()  # BATCH_SIZE*28*28
-        labels = labels.to(DEVICE)  # BATCH_SIZE*1
+    net.train()
+    val_loss = 0.0  # 损失数量
+    num_correct = 0.0  # 准确数量
+    total = 0.0  # 总共数量
+    for i,(X,y) in enumerate(dataloader):
+        length = len(dataloader)
+        X = X.type(torch.FloatTensor)
+        y = y.type(torch.LongTensor)
 
-        outputs = model(images)
-        pred = torch.max(outputs, 1)[1]  # 这一步将给出每张图片的分类结果，BATCH_SIZE*1
         optimizer.zero_grad()
-        loss = cost(outputs, labels)
+        outputs,fea = net(X)  ### change
+        loss = loss_function(outputs, y)
         loss.backward()
         optimizer.step()
-        val_loss_batch += loss.data
-        val_loss += val_loss_batch
-        num_correct_batch += (pred == labels).sum().item()
-        num_correct += num_correct_batch
-        # print(
-        #     "Batch {}/{}, Loss: {:.6f}, Accuracy: {:.6f}%".format(
-        #         batch_idx + 1,
-        #         BATCH_NUM,
-        #         val_loss_batch / BATCH_SIZE,
-        #         100 * num_correct_batch / BATCH_SIZE,
-        #     )
-        # )
-    # print(
-    #     "Epoch {}: Loss: {:.6f}, Accuracy: {:.6f}%\n".format(
-    #         epoch + 1, val_loss / len(dataset), 100 * num_correct / len(dataset)
-    #     )
-    # )
+
+        val_loss += loss.item()
+        _, predicted = torch.max(outputs.data, 1)
+        total += y.size(0)
+        num_correct += (predicted == y).sum().item()
+        # correct += predicted.eq(y.data).cpu().sum()
+        # print('[epoch:%d, iter:%d/%d] Loss: %.03f | Acc: %.3f%% '
+        #       % (epoch + 1, (i + 1), length, val_loss / (i + 1), 100. * num_correct / total))
+
     pbar.set_postfix(
         Accuracy="{:.6f}%".format(100 * num_correct / len(dataset)),
         Loss="{:.6f}".format(val_loss / len(dataset)),
     )
     Accs.append(num_correct / len(dataset))
+    Losss.append(val_loss / len(dataset))
 # 保存整个网络
 print("Saving the model...")
 if not os.path.exists(MODEL_PATH):
     os.makedirs(MODEL_PATH)
-torch.save(model, MODEL_PATH + "/MyCNN_MNIST.pkl")
+torch.save(net, MODEL_PATH + "/MyCNN_MNIST.pkl")
 
-# 绘制折线图
-plt.plot(range(len(Accs)), Accs, marker="o")
-
-# 添加标题和标签
-plt.title("Accuracy of Each epoch")
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-
-# 显示图表
-plt.grid(True)  # 添加网格线
+# 绘制Accs的折线图  
+fig, ax1 = plt.subplots()  
+ax1.plot(range(len(Accs)), Accs, marker="o", label="Accuracy", color="blue")  
+ax1.set_xlabel("Epoch")  
+ax1.set_ylabel("Accuracy", color="blue")  
+ax1.tick_params(axis='y', labelcolor="blue")  
+  
+# 创建共享X轴的第二个Y轴并绘制Losss的折线图  
+ax2 = ax1.twinx()  
+ax2.plot(range(len(Losss)), Losss, marker="x", label="Loss", color="red")  
+ax2.set_ylabel("Loss", color="red")  
+ax2.tick_params(axis='y', labelcolor="red")  
+  
+# 添加标题和图例  
+plt.title("Accuracy and Loss of Each Epoch")  
+fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)  
+  
+# 显示图表  
+plt.grid(True)  
 plt.show()
