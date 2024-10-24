@@ -11,8 +11,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 加载MAT文件
 print("Loading train set...")
-label_data = scipy.io.loadmat("./DataSets/labels_3.mat")
-sample_data = scipy.io.loadmat("./DataSets/datas_3.mat")
+label_data = scipy.io.loadmat("./DataSets/labels_wt_3.mat")
+sample_data = scipy.io.loadmat("./DataSets/datas_wt_3.mat")
 
 
 # 将数据重塑为样本和特征的形式

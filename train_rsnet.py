@@ -13,12 +13,12 @@ from utils.RFFIDataSet import RFFIDataSet
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
-EPOCH = 1
+EPOCH = 100
 
 # 加载MAT文件
 print("Loading train set...")
-label_data = scipy.io.loadmat("./DataSets/labels_2.mat")
-sample_data = scipy.io.loadmat("./DataSets/datas_2.mat")
+label_data = scipy.io.loadmat("./DataSets/labels_wt_2.mat")
+sample_data = scipy.io.loadmat("./DataSets/datas_wt_2.mat")
 
 
 # 将数据重塑为样本和特征的形式
