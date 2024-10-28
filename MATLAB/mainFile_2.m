@@ -15,9 +15,9 @@ data_real = data_size+1:1:data_size*2;
 
 % 定义起始和结束范围  
 start = 1;  
-end_val = 15000;  
+end_val = 5000;  
 step_size = 500;  
-extract_count = 10;  
+extract_count = 50;  
   
 % 初始化结果数组  
 result = [];  
@@ -30,7 +30,7 @@ for i = 0:step_size:(end_val - step_size)
       
     % 提取当前段的前50个数（或者更少，如果接近末尾）  
     segment = start_idx:end_idx;  
-    segment = segment+20;
+    segment = segment+450;
     result = [result, segment];  
 end  
   
@@ -197,8 +197,8 @@ disp(['运行时间: ',num2str(toc)]);
 % labels=floor((iwant-1)/500)+1;
 % writematrix(labels, labelname);
 % writematrix(save_data,dataname);
-labelname='labels_2.mat';
-dataname='datas_2.mat';
+labelname='labels_wt_2.mat';
+dataname='datas_wt_2.mat';
 labels=floor((iwant-1)/500)+1;
 save(labelname,"labels");
 save(dataname,"save_data");

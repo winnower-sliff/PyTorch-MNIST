@@ -13,16 +13,16 @@ from utils.RFFIDataSet import RFFIDataSet
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
-EPOCH = 100
+EPOCH = 200
 
 # 加载MAT文件
 print("Loading train set...")
-label_data = scipy.io.loadmat("./DataSets/labels_wt_2.mat")
-sample_data = scipy.io.loadmat("./DataSets/datas_wt_2.mat")
+label_data = scipy.io.loadmat("./DataSets/labels_wt_5.mat")
+sample_data = scipy.io.loadmat("./DataSets/datas_wt_5.mat")
 
 
 # 将数据重塑为样本和特征的形式
-num_samples = 200
+num_samples = 4500
 num_features = 4070
 samples = torch.from_numpy(sample_data["save_data"])
 samples = samples.reshape(num_samples, 1, 2, num_features)
@@ -40,6 +40,8 @@ print("Using ", DEVICE)
 
 # 建立模型并载入设备
 net = rsnet.rsnet34().to(DEVICE)
+# net = torch.load(MODEL_PATH + "/RFFI.pkl", weights_only=False).to(DEVICE)
+
 # 定义损失及优化器
 cost = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(net.parameters())
@@ -69,8 +71,8 @@ for epoch in pbar:
     total = 0.0  # 总共数量
     for batch_idx, (images, labels) in enumerate(train_dataloader):
         length = len(train_dataloader)
-        images = images.type(torch.FloatTensor)
-        labels = labels.type(torch.LongTensor)
+        images = images.type(torch.FloatTensor).to(DEVICE)
+        labels = labels.type(torch.LongTensor).to(DEVICE)
 
         optimizer.zero_grad()
         outputs, fea = net(images)  ### change

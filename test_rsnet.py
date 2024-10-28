@@ -6,17 +6,17 @@ from torch.utils.data import DataLoader
 from utils.RFFIDataSet import RFFIDataSet
 
 MODEL_PATH = "./Models"
-BATCH_SIZE = 512
+BATCH_SIZE = 128
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 加载MAT文件
 print("Loading train set...")
-label_data = scipy.io.loadmat("./DataSets/labels_wt_3.mat")
-sample_data = scipy.io.loadmat("./DataSets/datas_wt_3.mat")
+label_data = scipy.io.loadmat("./DataSets/labels_wt_6.mat")
+sample_data = scipy.io.loadmat("./DataSets/datas_wt_6.mat")
 
 
 # 将数据重塑为样本和特征的形式
-num_samples = 100
+num_samples = 500
 num_features = 4070
 tst_samples = torch.from_numpy(sample_data["save_data"])
 tst_samples = tst_samples.reshape(num_samples, 1, 2, num_features)
