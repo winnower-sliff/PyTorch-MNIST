@@ -3,3 +3,5 @@
 *.png
 /.idea
 *.h5
+*.ipynb
+.gitignore
