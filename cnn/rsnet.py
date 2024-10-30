@@ -145,12 +145,13 @@ class RSNet(nn.Module):
         output = self.conv4_x(output)
         output = self.conv5_x(output)
         output = self.avg_pool(output)
-        fea = output
+        # fea = output  # 设备指纹的特征，需要使用时再取消注释
         output = output.view(output.size(0), -1)
         output = self.fc(output)
-        output = func.softmax(output, dim=1)  # 注意这里将给出BATCH_SIZE*10的矩阵
+        # output = func.softmax(output, dim=1)  # 注意这里将给出BATCH_SIZE*10的矩阵
 
-        return output, fea
+        # return output, fea
+        return output
 
 
 def rsnet18():

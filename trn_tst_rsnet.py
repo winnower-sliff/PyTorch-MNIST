@@ -13,29 +13,49 @@ from utils.RFFIDataSet import RFFIDataSet
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
-EPOCH = 2
+EPOCH = 100
 
 # 加载MAT文件
 print("Loading train & test set...")
-trn_label_data = scipy.io.loadmat("./DataSets/labels_wt_2.mat")
-trn_sample_data = scipy.io.loadmat("./DataSets/datas_wt_2.mat")
-tst_label_data = scipy.io.loadmat("./DataSets/labels_wt_3.mat")
-tst_sample_data = scipy.io.loadmat("./DataSets/datas_wt_3.mat")
+# trnFN=5
+# tstFN=6
+# trn_label_data = scipy.io.loadmat("./DataSets/labels_wt_"+str(trnFN)+".mat")
+# trn_sample_data = scipy.io.loadmat("./DataSets/datas_wt_"+str(trnFN)+".mat")
+# tst_label_data = scipy.io.loadmat("./DataSets/labels_wt_"+str(tstFN)+".mat")
+# tst_sample_data = scipy.io.loadmat("./DataSets/datas_wt_"+str(tstFN)+".mat")
 
-# 将数据重塑为样本和特征的形式
+# # 将数据重塑为样本和特征的形式
+# wt_lv_length = 4070
+# trn_samples = torch.from_numpy(trn_sample_data["save_data"])
+# trn_samples = trn_samples.reshape(-1, 1, 2, wt_lv_length)
+# trn_labels = torch.from_numpy(trn_label_data["labels"])
+# trn_labels = trn_labels.reshape(-1)
+# tst_samples = torch.from_numpy(tst_sample_data["save_data"])
+# tst_samples = tst_samples.reshape(-1, 1, 2, wt_lv_length)
+# tst_labels = torch.from_numpy(tst_label_data["labels"])
+# tst_labels = tst_labels.reshape(-1)
+
+# # 创建Dataset实例
+# trn_dataset = RFFIDataSet(trn_samples, trn_labels)
+# tst_dataset = RFFIDataSet(tst_samples, tst_labels)
+
+all_label_data = scipy.io.loadmat("./DataSets/labels_wt_7.mat")
+all_sample_data = scipy.io.loadmat("./DataSets/datas_wt_7.mat")
+
 wt_lv_length = 4070
-trn_samples = torch.from_numpy(trn_sample_data["save_data"])
-trn_samples = trn_samples.reshape(-1, 1, 2, wt_lv_length)
-trn_labels = torch.from_numpy(trn_label_data["labels"])
-trn_labels = trn_labels.reshape(-1)
-tst_samples = torch.from_numpy(tst_sample_data["save_data"])
-tst_samples = tst_samples.reshape(-1, 1, 2, wt_lv_length)
-tst_labels = torch.from_numpy(tst_label_data["labels"])
-tst_labels = tst_labels.reshape(-1)
+all_samples = torch.from_numpy(all_sample_data["save_data"])
+all_samples = all_samples.reshape(-1, 1, 2, wt_lv_length)
+all_labels = torch.from_numpy(all_label_data["labels"])
+all_labels = all_labels.reshape(-1)
 
-# 创建Dataset实例
-trn_dataset = RFFIDataSet(trn_samples, trn_labels)
-tst_dataset = RFFIDataSet(tst_samples, tst_labels)
+all_dataset = RFFIDataSet(all_samples, all_labels)
+
+## 80%用于训练
+train_size = int(len(all_dataset) * 0.8)
+test_size = len(all_dataset) - train_size
+trn_dataset, tst_dataset = torch.utils.data.random_split(
+    all_dataset, [train_size, test_size]
+)
 
 # 创建DataLoader实例
 trn_dataloader = DataLoader(trn_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -45,7 +65,8 @@ TRN_BATCH_NUM = math.ceil(len(trn_dataset) / BATCH_SIZE)
 TST_BATCH_NUM = math.ceil(len(tst_dataset) / BATCH_SIZE)
 print("Using ", DEVICE)
 
-if True:
+a = 1
+if a == 1:
     print("Creating new model...")
     net = rsnet.rsnet34().to(DEVICE)
 else:
@@ -68,9 +89,9 @@ print(
 trn_acc_perepoch = []
 loss_perepoch = []
 tst_acc_perepoch = []
-pbar = tqdm(range(EPOCH))
 
 print("Start training & testing...\n")
+pbar = tqdm(range(EPOCH))
 for epoch in pbar:
     pbar.set_description("Epoch")
     net.train()
@@ -83,7 +104,7 @@ for epoch in pbar:
         labels = labels.type(torch.LongTensor)
 
         optimizer.zero_grad()
-        outputs, fea = net(images)  ### change
+        outputs = net(images)  ### change
         loss = loss_function(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -95,14 +116,14 @@ for epoch in pbar:
     trn_accuracy = 100 * num_correct / len(trn_dataset)
     avg_loss = 100 * val_loss / len(trn_dataset)
 
-    with torch.no_grad():  # 没有求导
+    with torch.no_grad():  # 禁用梯度计算，以加速推理并减少内存消耗
         correct = 0.0
         total = 0.0
         for _, (images, tst_labels) in enumerate(tst_dataloader):
             net.eval()  # 运用net.eval()时，由于网络已经训练完毕，参数都是固定的，因此每个min-batch的均值和方差都是不变的，因此直接运用所有batch的均值和方差。
             images = images.type(torch.FloatTensor)
             tst_labels = tst_labels.type(torch.LongTensor)
-            outputs, fea = net(images)  ### change
+            outputs = net(images)  ### change
             # 取得分最高的那个类 (outputs.data的索引号)
             _, predicted = torch.max(outputs.data, 1)
             total += tst_labels.size(0)

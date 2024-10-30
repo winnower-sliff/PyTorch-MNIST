@@ -5,4 +5,4 @@
 *.h5
 *.ipynb
 .gitignore
-DataSets/datas_wt_5.mat
+DataSets/*.mat
