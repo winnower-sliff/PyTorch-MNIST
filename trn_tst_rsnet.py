@@ -13,7 +13,7 @@ from utils.RFFIDataSet import RFFIDataSet
 MODEL_PATH = "./Models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
-EPOCH = 100
+EPOCH = 200
 
 # 加载MAT文件
 print("Loading train & test set...")
@@ -100,8 +100,8 @@ for epoch in pbar:
     total = 0.0  # 总共数量
     for _, (images, labels) in enumerate(trn_dataloader):
         length = len(trn_dataloader)
-        images = images.type(torch.FloatTensor)
-        labels = labels.type(torch.LongTensor)
+        images = images.type(torch.FloatTensor).to(DEVICE)
+        labels = labels.type(torch.LongTensor).to(DEVICE)
 
         optimizer.zero_grad()
         outputs = net(images)  ### change
@@ -121,8 +121,8 @@ for epoch in pbar:
         total = 0.0
         for _, (images, tst_labels) in enumerate(tst_dataloader):
             net.eval()  # 运用net.eval()时，由于网络已经训练完毕，参数都是固定的，因此每个min-batch的均值和方差都是不变的，因此直接运用所有batch的均值和方差。
-            images = images.type(torch.FloatTensor)
-            tst_labels = tst_labels.type(torch.LongTensor)
+            images = images.type(torch.FloatTensor).to(DEVICE)
+            tst_labels = tst_labels.type(torch.LongTensor).to(DEVICE)
             outputs = net(images)  ### change
             # 取得分最高的那个类 (outputs.data的索引号)
             _, predicted = torch.max(outputs.data, 1)
