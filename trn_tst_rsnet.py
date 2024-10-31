@@ -43,10 +43,13 @@ all_label_data = scipy.io.loadmat("./DataSets/labels_wt_7.mat")
 all_sample_data = scipy.io.loadmat("./DataSets/datas_wt_7.mat")
 
 wt_lv_length = 4070
+wt_lv_width = 1
+channels = 2
 all_samples = torch.from_numpy(all_sample_data["save_data"])
-all_samples = all_samples.reshape(-1, 1, 2, wt_lv_length)
+all_samples = all_samples.reshape(-1, channels, wt_lv_width, wt_lv_length)
 all_labels = torch.from_numpy(all_label_data["labels"])
 all_labels = all_labels.reshape(-1)
+all_labels = all_labels - 1
 
 all_dataset = RFFIDataSet(all_samples, all_labels)
 
@@ -68,7 +71,7 @@ print("Using ", DEVICE)
 a = 1
 if a == 1:
     print("Creating new model...")
-    net = rsnet.rsnet34().to(DEVICE)
+    net = rsnet.rsnet34(num_classes=10, in_channels=channels).to(DEVICE)
 else:
     print("Loading saved model...")
     net = torch.load(MODEL_PATH + "/RFFI.pkl", weights_only=False).to(DEVICE)
@@ -91,9 +94,10 @@ loss_perepoch = []
 tst_acc_perepoch = []
 
 print("Start training & testing...\n")
-pbar = tqdm(range(EPOCH))
-for epoch in pbar:
-    pbar.set_description("Epoch")
+# pbar = tqdm(range(EPOCH))
+# for epoch in pbar:
+for epoch in range(EPOCH):
+    # pbar.set_description("Epoch")
     net.train()
     val_loss = 0.0  # 损失数量
     num_correct = 0.0  # 准确数量
@@ -131,10 +135,15 @@ for epoch in pbar:
         tst_accuracy = 100.0 * correct / total
 
     # 统计数据并展示
-    pbar.set_postfix(
-        TrnAcc="{:.3f}%".format(trn_accuracy),
-        Loss="{:.3f}%".format(avg_loss),
-        TstAcc="{:.3f}%".format(tst_accuracy),
+    # pbar.set_postfix(
+    #     TrnAcc="{:.3f}%".format(trn_accuracy),
+    #     Loss="{:.3f}%".format(avg_loss),
+    #     TstAcc="{:.3f}%".format(tst_accuracy),
+    # )
+    print(f"Epoch = {epoch}",
+        "\tLoss = {:.3f}%".format(avg_loss),
+        "\tTrnAcc = {:.3f}%".format(trn_accuracy),
+        "\tTstAcc = {:.3f}%".format(tst_accuracy)
     )
     trn_acc_perepoch.append(trn_accuracy)
     loss_perepoch.append(avg_loss)

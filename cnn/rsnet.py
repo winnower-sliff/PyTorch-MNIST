@@ -15,128 +15,137 @@ import torch.nn.functional as func
 class Shrinkage(nn.Module):
     def __init__(self, channel, gap_size):
         super(Shrinkage, self).__init__()
+        # 初始化自适应平均池化层，用于将输入的特征图尺寸调整为gap_size
         self.gap = nn.AdaptiveAvgPool2d(gap_size)
+        # 初始化一个全连接层序列，包括线性变换、批量归一化、ReLU激活函数、另一个线性变换和Sigmoid激活函数
         self.fc = nn.Sequential(
-            nn.Linear(channel, channel),
-            nn.BatchNorm1d(channel),
-            nn.ReLU(inplace=True),
-            nn.Linear(channel, channel),
-            nn.Sigmoid(),
+            nn.Linear(channel, channel),  # 线性变换，输入和输出通道数相同
+            nn.BatchNorm1d(channel),  # 批量归一化
+            nn.ReLU(inplace=True),  # ReLU激活函数，原地修改数据
+            nn.Linear(channel, channel),  # 另一个线性变换，输入和输出通道数相同
+            nn.Sigmoid(),  # Sigmoid激活函数，将输出值压缩到0到1之间
         )
 
     def forward(self, x):
         x_raw = x
-        x = torch.abs(x)
-        x_abs = x
+        x_abs = torch.abs(x)
         x = self.gap(x)
         x = torch.flatten(x, 1)
-        # average = torch.mean(x, dim=1, keepdim=True)
-        average = x
+        average = x  # 保留平均值
         x = self.fc(x)
-        x = torch.mul(average, x)
+        x = torch.mul(average, x)  # 将x与平均值相乘
         x = x.unsqueeze(2).unsqueeze(2)
-        # soft thresholding
         sub = x_abs - x
-        zeros = sub - sub
-        n_sub = torch.max(sub, zeros)
+        n_sub = torch.max(sub, torch.zeros_like(sub))
         x = torch.mul(torch.sign(x_raw), n_sub)
         return x
 
 
 class BasicBlock(nn.Module):
-    expansion = 1
+    expansion = 1  # 扩张比例
 
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
-        self.shrinkage = Shrinkage(out_channels, gap_size=(1, 1))
-        # residual function
+        self.shrinkage = Shrinkage(
+            out_channels, gap_size=(1, 1)
+        )  # 收缩层，用于减少输出维度或进行其他形式的特征压缩
+        # 残差函数部分
         self.residual_function = nn.Sequential(
             nn.Conv2d(
                 in_channels,
                 out_channels,
-                kernel_size=(1, 3),
-                stride=stride,
-                padding=(0, 1),
-                bias=False,
+                kernel_size=(1, 3),  # 卷积核大小
+                stride=stride,  # 步长
+                padding=(0, 1),  # 填充
+                bias=False,  # 是否使用偏置项
             ),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(out_channels),  # 批量归一化层
+            nn.ReLU(inplace=True),  # 激活函数，原地操作节省内存
             nn.Conv2d(
                 out_channels,
-                out_channels * BasicBlock.expansion,
+                out_channels * BasicBlock.expansion,  # 输出通道数乘以扩张比例
                 kernel_size=(1, 3),
                 padding=(0, 1),
                 bias=False,
             ),
             nn.BatchNorm2d(out_channels * BasicBlock.expansion),
-            self.shrinkage,
+            self.shrinkage,  # 应用收缩层
         )
-        # shortcut
+        # 捷径（shortcut）部分，用于直接连接输入和输出，以保持信息的流通
         self.shortcut = nn.Sequential()
 
-        # the shortcut output dimension is not the same with residual function
-        # use 1*1 convolution to match the dimension
+        # 如果捷径的输出维度与残差函数的输出维度不一致
+        # 使用1x1卷积来匹配维度
         if stride != 1 or in_channels != BasicBlock.expansion * out_channels:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(
                     in_channels,
-                    out_channels * BasicBlock.expansion,
-                    kernel_size=1,
+                    out_channels
+                    * BasicBlock.expansion,  # 输入通道数转为输出通道数乘以扩张比例
+                    kernel_size=1,  # 使用1x1卷积核
                     stride=stride,
                     bias=False,
                 ),
-                nn.BatchNorm2d(out_channels * BasicBlock.expansion),
+                nn.BatchNorm2d(out_channels * BasicBlock.expansion),  # 批量归一化层
             )
 
     def forward(self, x):
+        # 前向传播，将输入x通过残差函数和捷径后相加，再通过ReLU激活函数
         return nn.ReLU(inplace=True)(self.residual_function(x) + self.shortcut(x))
 
 
 class RSNet(nn.Module):
 
-    def __init__(self, block, num_block, num_classes=31):  ## person_num
+    def __init__(self, block, num_block, num_classes, in_channels):  ## person_num
         super().__init__()
 
-        self.in_channels = 4
+        self.out_channels = 4
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(1, 4, kernel_size=[2, 3], padding=(0, 1), bias=False),
+            nn.Conv2d(
+                in_channels,
+                self.out_channels,
+                kernel_size=[1, 5],
+                padding=(0, 2),
+                bias=False,
+            ),
             nn.BatchNorm2d(4),
             nn.ReLU(inplace=True),
         )
+        self.in_channels = self.out_channels
+
         # we use a different inputsize than the original paper
         # so conv2_x's stride is 1
-        self.conv2_x = self._make_layer(block, 4, num_block[0], 1)
-        self.conv3_x = self._make_layer(block, 8, num_block[1], 2)
-        self.conv4_x = self._make_layer(block, 16, num_block[2], 2)
-        self.conv5_x = self._make_layer(block, 32, num_block[3], 2)
+        self.conv2_x = self._make_layer(block, 4, num_block[0], stride=1)
+        self.conv3_x = self._make_layer(block, 8, num_block[1], stride=2)
+        self.conv4_x = self._make_layer(block, 16, num_block[2], stride=2)
+        self.conv5_x = self._make_layer(block, 32, num_block[3], stride=2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(32 * block.expansion, num_classes)
 
     def _make_layer(self, block, out_channels, num_blocks, stride):
-        """make rsnet layers(by layer i didnt mean this 'layer' was the
-        same as a neuron netowork layer, ex. conv layer), one layer may
-        contain more than one residual shrinkage block
+        """创建rsnet层（这里的'层'并不等同于神经网络层，例如卷积层），一个层可能包含多个残差收缩块
 
-        Args:
-            block: block type, basic block or bottle neck block
-            out_channels: output depth channel number of this layer
-            num_blocks: how many blocks per layer
-            stride: the stride of the first block of this layer
+        参数:
+            block: 块类型，基本块或瓶颈块
+            out_channels: 该层的输出深度通道数
+            num_blocks: 每层的块数量
+            stride: 该层第一个块的步长
 
-        Return:
-            return a rsnet layer
+        返回:
+            返回一个rsnet层
         """
 
-        # we have num_block blocks per layer, the first block
-        # could be 1 or 2, other blocks would always be 1
+        # 每层有num_block个块，第一个块的步长可能为1或2，其他块的步长始终为1
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
             layers.append(block(self.in_channels, out_channels, stride))
-            self.in_channels = out_channels * block.expansion
+            self.in_channels = (
+                out_channels * block.expansion
+            )  # 更新输入通道数为输出通道数乘以块的扩展系数
 
-        return nn.Sequential(*layers)
+        return nn.Sequential(*layers)  # 返回一个按顺序排列的层
 
     def forward(self, x):
         output = self.conv1(x)
@@ -148,20 +157,19 @@ class RSNet(nn.Module):
         # fea = output  # 设备指纹的特征，需要使用时再取消注释
         output = output.view(output.size(0), -1)
         output = self.fc(output)
-        # output = func.softmax(output, dim=1)  # 注意这里将给出BATCH_SIZE*10的矩阵
 
         # return output, fea
         return output
 
 
-def rsnet18():
+def rsnet18(num_classes, in_channels):
     """return a RsNet 18 object"""
-    return RSNet(BasicBlock, [2, 2, 2, 2])
+    return RSNet(BasicBlock, [2, 2, 2, 2], num_classes, in_channels)
 
 
-def rsnet34():
+def rsnet34(num_classes, in_channels):
     """return a RsNet 34 object"""
-    return RSNet(BasicBlock, [3, 4, 6, 3])
+    return RSNet(BasicBlock, [3, 4, 6, 3], num_classes, in_channels)
 
 
 # def resnet50():
