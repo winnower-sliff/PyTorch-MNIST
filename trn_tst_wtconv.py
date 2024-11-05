@@ -39,8 +39,8 @@ print("Loading train & test set...")
 # trn_dataset = RFFIDataSet(trn_samples, trn_labels)
 # tst_dataset = RFFIDataSet(tst_samples, tst_labels)
 
-all_label_data = scipy.io.loadmat("./DataSets/labels_wt_7.mat")
-all_sample_data = scipy.io.loadmat("./DataSets/datas_wt_7.mat")
+all_label_data = scipy.io.loadmat("./DataSets/labels_wt_8.mat")
+all_sample_data = scipy.io.loadmat("./DataSets/datas_wt_8.mat")
 
 wt_lv_length = 4070
 wt_lv_width = 2
@@ -50,6 +50,7 @@ raw_samples = raw_samples.reshape(-1, channels, wt_lv_width, wt_lv_length)
 raw_labels = torch.from_numpy(all_label_data["labels"])
 raw_labels = raw_labels.reshape(-1)
 
+# 强调变换高点
 change_samples=torch.clone(raw_samples)
 change_samples[change_samples<0.01]=0
 combined_samples = torch.cat((raw_samples, change_samples), dim=2)  # 沿着通道维度（第二个维度）拼接  

@@ -32,8 +32,8 @@ disp(result2);
 %%
 
 
-iwant_lb = 1:5000;
-iwant_dt = 1:10000;
+iwant_lb = 1:1000;
+iwant_dt = 1:2000;
 
 % iwant_lb=result1;
 % iwant_dt=result2;
@@ -44,8 +44,8 @@ load("labels_wt_BIG.mat")
 labels = labels(iwant_lb);
 save_data = save_data(iwant_dt, :);
 
-labelname = 'labels_wt_7.mat';
-dataname = 'datas_wt_7.mat';
+labelname = 'labels_wt_8.mat';
+dataname = 'datas_wt_8.mat';
 
 save(labelname, "labels");
 save(dataname, "save_data");

@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+import WTConv
 
 class Shrinkage(nn.Module):
     def __init__(self, channel, gap_size):
@@ -51,22 +52,17 @@ class BasicBlock(nn.Module):
         )  # 收缩层，用于减少输出维度或进行其他形式的特征压缩
         # 残差函数部分
         self.residual_function = nn.Sequential(
-            nn.Conv2d(
+            WTConv.DepthwiseSeparableConvWithWTConv2d(
                 in_channels,
                 out_channels,
-                kernel_size=(3, 101),  # 卷积核大小
-                stride=stride,  # 步长
-                padding=(1, 50),  # 填充
-                bias=False,  # 是否使用偏置项
+                kernel_size=(3, 3),  # 卷积核大小
             ),
             nn.BatchNorm2d(out_channels),  # 批量归一化层
             nn.ReLU(inplace=True),  # 激活函数，原地操作节省内存
-            nn.Conv2d(
+            WTConv.DepthwiseSeparableConvWithWTConv2d(
                 out_channels,
                 out_channels * BasicBlock.expansion,  # 输出通道数乘以扩张比例
-                kernel_size=(3, 101),
-                padding=(1, 50),
-                bias=False,
+                kernel_size=(3, 3),
             ),
             nn.BatchNorm2d(out_channels * BasicBlock.expansion),
             self.shrinkage,  # 应用收缩层
@@ -102,12 +98,10 @@ class RSNet(nn.Module):
         self.out_channels = 4
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(
+            WTConv.DepthwiseSeparableConvWithWTConv2d(
                 in_channels,
                 self.out_channels,
                 kernel_size=[3, 3],
-                padding=(1, 1),
-                bias=False,
             ),
             nn.BatchNorm2d(4),
             nn.ReLU(inplace=True),
